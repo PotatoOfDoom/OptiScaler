@@ -82,6 +82,14 @@ static std::vector<std::string> splashText = { "May the coping commence...",
                                                "FSR4 DP4a wenETA, AMD plz",
                                                "OptiCopers, assemble!" };
 
+static ImVec2 updateNoticePosition(-1000.0f, -1000.0f);
+static ImVec2 updateNoticeSize(0.0f, 0.0f);
+static double updateNoticeStart = 0.0;
+static double updateNoticeLimit = 0.0;
+static bool updateNoticeVisible = false;
+static std::string updateNoticeTag;
+static std::string updateNoticeUrl;
+
 void MenuCommon::ShowTooltip(const char* tip)
 {
     if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
@@ -1392,6 +1400,8 @@ bool MenuCommon::RenderMenu()
     bool frameTimesCalculated = false;
     const double splashTime = 7000.0;
     const double fadeTime = 1000.0;
+    const double updateNoticeTime = 12000.0;
+    const double updateNoticeFade = 1000.0;
     static std::string splashMessage;
 
     // Splash screen
@@ -1471,6 +1481,109 @@ bool MenuCommon::RenderMenu()
             ImGui::PopStyleVar(2);
 
             frameStarted = true;
+
+            if (!_isVisible && !Config::Instance()->ShowFps.value_or_default())
+            {
+                ImGui::EndFrame();
+                return true;
+            }
+        }
+    }
+
+    if (updateNoticeVisible)
+    {
+        if (now >= updateNoticeLimit)
+        {
+            updateNoticeVisible = false;
+        }
+        else
+        {
+            if (!frameStarted)
+            {
+                if (!_isUWP)
+                {
+                    ImGui_ImplWin32_NewFrame();
+                }
+                else if (!newFrame)
+                {
+                    ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
+                    ImGui_ImplUwp_NewFrame(displaySize);
+                }
+
+                MenuHdrCheck(io);
+                MenuSizeCheck(io);
+                ImGui::NewFrame();
+                frameStarted = true;
+            }
+
+            ImGui::SetNextWindowSize({ 0.0f, 0.0f });
+            ImGui::SetNextWindowBgAlpha(Config::Instance()->FpsOverlayAlpha.value_or_default());
+            ImGui::SetNextWindowPos(updateNoticePosition, ImGuiCond_Always);
+
+            float windowAlpha = 1.0f;
+            if (auto diff = now - updateNoticeStart; diff < updateNoticeFade)
+                windowAlpha = static_cast<float>(diff / updateNoticeFade);
+            else if (auto diff = updateNoticeLimit - now; diff < updateNoticeFade)
+                windowAlpha = static_cast<float>(diff / updateNoticeFade);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_Alpha, windowAlpha);
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(12, 8));
+            ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
+
+            bool pushedFont = false;
+            if (ImGui::Begin("Update Available", nullptr,
+                             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDecoration |
+                                 ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoFocusOnAppearing |
+                                 ImGuiWindowFlags_NoNav))
+            {
+                float splashScale = 1.0f;
+                float baseScaleHeight = 720.0f;
+
+                if (io.DisplaySize.y > baseScaleHeight)
+                    splashScale = io.DisplaySize.y / baseScaleHeight;
+
+                if (Config::Instance()->UseHQFont.value_or_default())
+                {
+                    ImGui::PushFontSize(std::round(splashScale * fontSize));
+                    pushedFont = true;
+                }
+                else
+                {
+                    ImGui::SetWindowFontScale(splashScale);
+                }
+
+                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.8f, 0.0f, 1.0f)), "Update available");
+                ImGui::Spacing();
+                ImGui::Text("Latest release: %s", updateNoticeTag.c_str());
+                ImGui::Text("Current version: %s", currentVersion.c_str());
+
+                if (!updateNoticeUrl.empty())
+                {
+                    ImGui::Spacing();
+                    ImGui::TextLinkOpenURL("Open release", updateNoticeUrl.c_str());
+                }
+
+                if (pushedFont)
+                    ImGui::PopFontSize();
+            }
+
+            updateNoticeSize = ImGui::GetWindowSize();
+            ImGui::End();
+
+            ImGui::PopStyleColor(2);
+            ImGui::PopStyleVar(2);
+
+            updateNoticePosition.x = 0.0f;
+            float baseY = io.DisplaySize.y - updateNoticeSize.y;
+
+            if (!Config::Instance()->DisableSplash.value_or_default() && now > splashStart && now < splashLimit)
+                baseY = splashPosition.y - updateNoticeSize.y - 10.0f;
+
+            if (baseY < 0.0f)
+                baseY = 0.0f;
+
+            updateNoticePosition.y = baseY;
 
             if (!_isVisible && !Config::Instance()->ShowFps.value_or_default())
             {
@@ -1900,6 +2013,18 @@ bool MenuCommon::RenderMenu()
                 versionStatus.latestTag = state.latestVersionTag;
                 versionStatus.latestUrl = state.latestVersionUrl;
                 versionStatus.error = state.versionCheckError;
+            }
+
+            if (versionStatus.completed && versionStatus.updateAvailable && !versionStatus.latestTag.empty())
+            {
+                if (updateNoticeTag != versionStatus.latestTag)
+                {
+                    updateNoticeTag = versionStatus.latestTag;
+                    updateNoticeUrl = versionStatus.latestUrl;
+                    updateNoticeStart = now;
+                    updateNoticeLimit = updateNoticeStart + updateNoticeTime;
+                    updateNoticeVisible = true;
+                }
             }
 
             const auto& currentVersion = VersionCheck::CurrentVersionString();
