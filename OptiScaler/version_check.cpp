@@ -5,7 +5,7 @@
 #include "State.h"
 #include "resource.h"
 
-#include <nlohmann/json.hpp>
+#include <json.hpp>
 
 #include <winhttp.h>
 
@@ -15,10 +15,6 @@
 #include <thread>
 #include <mutex>
 #include <format>
-
-#ifdef _MSC_VER
-#    pragma comment(lib, "winhttp.lib")
-#endif
 
 namespace
 {
