@@ -383,6 +383,9 @@
     <ClInclude Include="inputs\XeSS_Vulkan.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="version_check.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="upscalers\xess\XeSSFeature_Dx11on12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -512,6 +515,21 @@
     <ClInclude Include="misc\Quirks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="hooks\Ntdll_Hooks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\hudless_compare\HC_Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\hudless_compare\HC_Dx12.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\hudless_compare\precompile\hudless_compare_PShader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="shaders\hudless_compare\precompile\hudless_compare_VShader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Config.cpp">
@@ -520,6 +538,9 @@
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="Util.cpp">
       <Filter>Util</Filter>
+    </ClCompile>
+    <ClCompile Include="version_check.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="inputs\NVNGX_DLSS_Dx12.cpp">
       <Filter>Source Files</Filter>
@@ -801,6 +822,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="include\sl.param\parameters.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shaders\hudless_compare\HC_Dx12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

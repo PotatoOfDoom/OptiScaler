@@ -35,6 +35,7 @@
 #include <nvapi/NvApiHooks.h>
 
 #include <cwctype>
+#include <version_check.h>
 
 static std::vector<HMODULE> _asiHandles;
 
@@ -933,6 +934,9 @@ static void CheckWorkingMode()
                 else
                     LOG_ERROR("Failed to load igdext64.dll");
             }
+
+            
+            VersionCheck::Start();
         }
 
         return;
