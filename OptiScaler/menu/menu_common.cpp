@@ -527,7 +527,10 @@ class Keybind
     int id;
     bool waitingForKey = false;
 
-    std::string KeyNameFromVirtualKeyCode(USHORT virtualKey)
+  public:
+    Keybind(std::string name, int id) : name(name), id(id) {}
+
+    static std::string KeyNameFromVirtualKeyCode(USHORT virtualKey)
     {
         if (virtualKey == (USHORT) UnboundKey)
             return "Unbound";
@@ -565,9 +568,6 @@ class Keybind
 
         return "Unknown";
     }
-
-  public:
-    Keybind(std::string name, int id) : name(name), id(id) {}
 
     void Render(CustomOptional<int>& configKey)
     {
@@ -1306,8 +1306,6 @@ bool MenuCommon::RenderMenu()
 
     _frameCount++;
 
-    VersionCheck::Start();
-
     // FPS & frame time calculation
     auto now = Util::MillisecondsNow();
     double frameTime = 0.0;
@@ -1396,13 +1394,10 @@ bool MenuCommon::RenderMenu()
         inputFpsCycle = false;
     }
 
-    const bool skipMenuRender = !_isVisible && !Config::Instance()->ShowFps.value_or_default();
-
-    bool frameStarted = false;
     bool frameTimesCalculated = false;
     const double splashTime = 7000.0;
     const double fadeTime = 1000.0;
-    const double updateNoticeTime = 12000.0;
+    const double updateNoticeTime = 60000.0;
     const double updateNoticeFade = 1000.0;
     static std::string splashMessage;
 
@@ -1439,6 +1434,20 @@ bool MenuCommon::RenderMenu()
         }
     }
 
+    if (!_isUWP)
+    {
+        ImGui_ImplWin32_NewFrame();
+    }
+    else if (!newFrame)
+    {
+        ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
+        ImGui_ImplUwp_NewFrame(displaySize);
+    }
+
+    MenuHdrCheck(io);
+    MenuSizeCheck(io);
+    ImGui::NewFrame();
+
     // Splash screen
     if (!Config::Instance()->DisableSplash.value_or_default())
     {
@@ -1453,19 +1462,6 @@ bool MenuCommon::RenderMenu()
 
         if (now > splashStart && now < splashLimit)
         {
-            if (!_isUWP)
-            {
-                ImGui_ImplWin32_NewFrame();
-            }
-            else if (!newFrame)
-            {
-                ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
-                ImGui_ImplUwp_NewFrame(displaySize);
-            }
-
-            MenuHdrCheck(io);
-            MenuSizeCheck(io);
-            ImGui::NewFrame();
 
             ImGui::SetNextWindowSize({ 0.0f, 0.0f });
             ImGui::SetNextWindowBgAlpha(Config::Instance()->FpsOverlayAlpha.value_or_default());
@@ -1514,8 +1510,6 @@ bool MenuCommon::RenderMenu()
 
             ImGui::PopStyleColor(2);
             ImGui::PopStyleVar(2);
-
-            frameStarted = true;
         }
     }
 
@@ -1527,24 +1521,6 @@ bool MenuCommon::RenderMenu()
         }
         else
         {
-            if (!frameStarted)
-            {
-                if (!_isUWP)
-                {
-                    ImGui_ImplWin32_NewFrame();
-                }
-                else if (!newFrame)
-                {
-                    ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
-                    ImGui_ImplUwp_NewFrame(displaySize);
-                }
-
-                MenuHdrCheck(io);
-                MenuSizeCheck(io);
-                ImGui::NewFrame();
-                frameStarted = true;
-            }
-
             ImGui::SetNextWindowSize({ 0.0f, 0.0f });
             ImGui::SetNextWindowBgAlpha(Config::Instance()->FpsOverlayAlpha.value_or_default());
             ImGui::SetNextWindowPos(updateNoticePosition, ImGuiCond_Always);
@@ -1582,16 +1558,9 @@ bool MenuCommon::RenderMenu()
                     ImGui::SetWindowFontScale(splashScale);
                 }
 
-                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.8f, 0.0f, 1.0f)), "Update available");
+                ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.0f, 0.0f, 1.0f)), "OptiScaler Update available");
                 ImGui::Spacing();
-                ImGui::Text("Latest release: %s", updateNoticeTag.c_str());
-                ImGui::Text("Current version: %s", currentVersionText.c_str());
-
-                if (!updateNoticeUrl.empty())
-                {
-                    ImGui::Spacing();
-                    ImGui::TextLinkOpenURL("Open release", updateNoticeUrl.c_str());
-                }
+                ImGui::Text("Press %s for more info", Keybind::KeyNameFromVirtualKeyCode(Config::Instance()->ShortcutKey.value_or_default()).c_str());
 
                 if (pushedFont)
                     ImGui::PopFontSize();
@@ -1616,14 +1585,6 @@ bool MenuCommon::RenderMenu()
         }
     }
 
-    if (skipMenuRender)
-    {
-        if (frameStarted)
-            ImGui::EndFrame();
-
-        return true;
-    }
-
     // FPS Overlay font
     auto fpsScale = Config::Instance()->FpsScale.value_or(Config::Instance()->MenuScale.value_or_default());
 
@@ -1644,25 +1605,6 @@ bool MenuCommon::RenderMenu()
         frameTime /= frameCnt;
         frameRate = 1000.0 / frameTime;
         frameTimesCalculated = true;
-
-        if (!frameStarted)
-        {
-            if (!_isUWP)
-            {
-                ImGui_ImplWin32_NewFrame();
-            }
-            else if (!newFrame)
-            {
-                ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
-                ImGui_ImplUwp_NewFrame(displaySize);
-            }
-
-            MenuHdrCheck(io);
-            MenuSizeCheck(io);
-            ImGui::NewFrame();
-
-            frameStarted = true;
-        }
 
         State::Instance().frameTimeMutex.lock();
         std::vector<float> frameTimeArray(State::Instance().frameTimes.begin(), State::Instance().frameTimes.end());
@@ -1922,18 +1864,9 @@ bool MenuCommon::RenderMenu()
             else
                 overlayPosition.y = io.DisplaySize.y - overlaySize.y;
         }
-
-        if (!_isVisible)
-        {
-            if (frameStarted)
-                ImGui::EndFrame();
-            return true;
-        }
     }
 
-    if (!_isVisible)
-        return false;
-
+    if (_isVisible)
     {
         // Overlay font
         if (Config::Instance()->UseHQFont.value_or_default())
@@ -1955,23 +1888,6 @@ bool MenuCommon::RenderMenu()
 
             frameTime /= frameCnt;
             frameRate = 1000.0 / frameTime;
-        }
-
-        if (!frameStarted)
-        {
-            if (!_isUWP)
-            {
-                ImGui_ImplWin32_NewFrame();
-            }
-            else if (!newFrame)
-            {
-                ImVec2 displaySize { State::Instance().screenWidth, State::Instance().screenHeight };
-                ImGui_ImplUwp_NewFrame(displaySize);
-            }
-
-            MenuHdrCheck(io);
-            MenuSizeCheck(io);
-            ImGui::NewFrame();
         }
 
         ImGuiWindowFlags flags = 0;
@@ -2039,7 +1955,7 @@ bool MenuCommon::RenderMenu()
                     if (!versionStatus.latestUrl.empty())
                     {
                         ImGui::SameLine();
-                        ImGui::TextLinkOpenURL("Open release", versionStatus.latestUrl.c_str());
+                        ImGui::TextLinkOpenURL("Open release page", versionStatus.latestUrl.c_str());
                     }
 
                     ImGui::Spacing();
@@ -4752,6 +4668,8 @@ bool MenuCommon::RenderMenu()
 
         if (Config::Instance()->UseHQFont.value_or_default())
             ImGui::PopFontSize();
+
+        ImGui::EndFrame();
 
         return true;
     }
