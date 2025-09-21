@@ -8,6 +8,7 @@
 #include <deque>
 #include <vulkan/vulkan.h>
 #include <ankerl/unordered_dense.h>
+#include <mutex>
 
 typedef enum API
 {
@@ -153,6 +154,15 @@ class State
     std::deque<double> frameTimes;
     double lastFrameTime = 0.0;
     std::mutex frameTimeMutex;
+
+    // Version check
+    std::mutex versionCheckMutex;
+    bool versionCheckInProgress = false;
+    bool versionCheckCompleted = false;
+    bool updateAvailable = false;
+    std::string latestVersionTag;
+    std::string latestVersionUrl;
+    std::string versionCheckError;
 
     // Swapchain info
     float screenWidth = 800.0;

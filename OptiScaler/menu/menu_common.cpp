@@ -16,6 +16,10 @@
 
 #include <imgui/imgui_internal.h>
 
+#include <mutex>
+
+#include <version_check.h>
+
 #define MARK_ALL_BACKENDS_CHANGED()                                                                                    \
     for (auto& singleChangeBackend : State::Instance().changeBackend)                                                  \
         singleChangeBackend.second = true;
@@ -1294,6 +1298,8 @@ bool MenuCommon::RenderMenu()
 
     _frameCount++;
 
+    VersionCheck::Start();
+
     // FPS & frame time calculation
     auto now = Util::MillisecondsNow();
     double frameTime = 0.0;
@@ -1876,6 +1882,51 @@ bool MenuCommon::RenderMenu()
                 ImGui::SetWindowFocus();
 
             _selectedScale = ((int) (Config::Instance()->MenuScale.value() * 10.0f)) - 5;
+
+            struct VersionCheckStatus
+            {
+                bool completed = false;
+                bool updateAvailable = false;
+                std::string latestTag;
+                std::string latestUrl;
+                std::string error;
+            } versionStatus;
+
+            {
+                auto& state = State::Instance();
+                std::scoped_lock lock(state.versionCheckMutex);
+                versionStatus.completed = state.versionCheckCompleted;
+                versionStatus.updateAvailable = state.updateAvailable;
+                versionStatus.latestTag = state.latestVersionTag;
+                versionStatus.latestUrl = state.latestVersionUrl;
+                versionStatus.error = state.versionCheckError;
+            }
+
+            const auto& currentVersion = VersionCheck::CurrentVersionString();
+
+            if (versionStatus.completed)
+            {
+                if (versionStatus.updateAvailable && !versionStatus.latestTag.empty())
+                {
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "Update available: %s (current %s)",
+                                        versionStatus.latestTag.c_str(), currentVersion.c_str());
+
+                    if (!versionStatus.latestUrl.empty())
+                    {
+                        ImGui::SameLine();
+                        ImGui::TextLinkOpenURL("Open release", versionStatus.latestUrl.c_str());
+                    }
+
+                    ImGui::Spacing();
+                }
+                else if (!versionStatus.error.empty())
+                {
+                    ImGui::Spacing();
+                    ImGui::TextColored(ImVec4(1.f, 0.4f, 0.f, 1.f), "%s", versionStatus.error.c_str());
+                    ImGui::Spacing();
+                }
+            }
 
             // No active upscaler message
             if (currentFeature == nullptr || !currentFeature->IsInited())
