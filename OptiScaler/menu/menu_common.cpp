@@ -1396,6 +1396,8 @@ bool MenuCommon::RenderMenu()
         inputFpsCycle = false;
     }
 
+    const bool skipMenuRender = !_isVisible && !Config::Instance()->ShowFps.value_or_default();
+
     bool frameStarted = false;
     bool frameTimesCalculated = false;
     const double splashTime = 7000.0;
@@ -1403,6 +1405,39 @@ bool MenuCommon::RenderMenu()
     const double updateNoticeTime = 12000.0;
     const double updateNoticeFade = 1000.0;
     static std::string splashMessage;
+
+    struct VersionCheckStatus
+    {
+        bool completed = false;
+        bool updateAvailable = false;
+        std::string latestTag;
+        std::string latestUrl;
+        std::string error;
+    } versionStatus;
+
+    {
+        auto& state = State::Instance();
+        std::scoped_lock lock(state.versionCheckMutex);
+        versionStatus.completed = state.versionCheckCompleted;
+        versionStatus.updateAvailable = state.updateAvailable;
+        versionStatus.latestTag = state.latestVersionTag;
+        versionStatus.latestUrl = state.latestVersionUrl;
+        versionStatus.error = state.versionCheckError;
+    }
+
+    const auto& currentVersionText = VersionCheck::CurrentVersionString();
+
+    if (versionStatus.completed && versionStatus.updateAvailable && !versionStatus.latestTag.empty())
+    {
+        if (updateNoticeTag != versionStatus.latestTag)
+        {
+            updateNoticeTag = versionStatus.latestTag;
+            updateNoticeUrl = versionStatus.latestUrl;
+            updateNoticeStart = now;
+            updateNoticeLimit = updateNoticeStart + updateNoticeTime;
+            updateNoticeVisible = true;
+        }
+    }
 
     // Splash screen
     if (!Config::Instance()->DisableSplash.value_or_default())
@@ -1481,12 +1516,6 @@ bool MenuCommon::RenderMenu()
             ImGui::PopStyleVar(2);
 
             frameStarted = true;
-
-            if (!_isVisible && !Config::Instance()->ShowFps.value_or_default())
-            {
-                ImGui::EndFrame();
-                return true;
-            }
         }
     }
 
@@ -1556,7 +1585,7 @@ bool MenuCommon::RenderMenu()
                 ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.8f, 0.0f, 1.0f)), "Update available");
                 ImGui::Spacing();
                 ImGui::Text("Latest release: %s", updateNoticeTag.c_str());
-                ImGui::Text("Current version: %s", currentVersion.c_str());
+                ImGui::Text("Current version: %s", currentVersionText.c_str());
 
                 if (!updateNoticeUrl.empty())
                 {
@@ -1584,13 +1613,15 @@ bool MenuCommon::RenderMenu()
                 baseY = 0.0f;
 
             updateNoticePosition.y = baseY;
-
-            if (!_isVisible && !Config::Instance()->ShowFps.value_or_default())
-            {
-                ImGui::EndFrame();
-                return true;
-            }
         }
+    }
+
+    if (skipMenuRender)
+    {
+        if (frameStarted)
+            ImGui::EndFrame();
+
+        return true;
     }
 
     // FPS Overlay font
@@ -1996,46 +2027,13 @@ bool MenuCommon::RenderMenu()
 
             _selectedScale = ((int) (Config::Instance()->MenuScale.value() * 10.0f)) - 5;
 
-            struct VersionCheckStatus
-            {
-                bool completed = false;
-                bool updateAvailable = false;
-                std::string latestTag;
-                std::string latestUrl;
-                std::string error;
-            } versionStatus;
-
-            {
-                auto& state = State::Instance();
-                std::scoped_lock lock(state.versionCheckMutex);
-                versionStatus.completed = state.versionCheckCompleted;
-                versionStatus.updateAvailable = state.updateAvailable;
-                versionStatus.latestTag = state.latestVersionTag;
-                versionStatus.latestUrl = state.latestVersionUrl;
-                versionStatus.error = state.versionCheckError;
-            }
-
-            if (versionStatus.completed && versionStatus.updateAvailable && !versionStatus.latestTag.empty())
-            {
-                if (updateNoticeTag != versionStatus.latestTag)
-                {
-                    updateNoticeTag = versionStatus.latestTag;
-                    updateNoticeUrl = versionStatus.latestUrl;
-                    updateNoticeStart = now;
-                    updateNoticeLimit = updateNoticeStart + updateNoticeTime;
-                    updateNoticeVisible = true;
-                }
-            }
-
-            const auto& currentVersion = VersionCheck::CurrentVersionString();
-
             if (versionStatus.completed)
             {
                 if (versionStatus.updateAvailable && !versionStatus.latestTag.empty())
                 {
                     ImGui::Spacing();
                     ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "Update available: %s (current %s)",
-                                        versionStatus.latestTag.c_str(), currentVersion.c_str());
+                                        versionStatus.latestTag.c_str(), currentVersionText.c_str());
 
                     if (!versionStatus.latestUrl.empty())
                     {
