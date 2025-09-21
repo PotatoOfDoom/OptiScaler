@@ -935,7 +935,7 @@ static void CheckWorkingMode()
                     LOG_ERROR("Failed to load igdext64.dll");
             }
 
-                        VersionCheck::Start();
+            VersionCheck::Start();
         }
 
         return;
