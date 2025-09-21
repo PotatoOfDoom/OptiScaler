@@ -31,10 +31,7 @@ struct LatestReleaseInfo
     std::string url;
 };
 
-SemanticVersion CurrentVersion()
-{
-    return { VER_MAJOR_VERSION, VER_MINOR_VERSION, VER_HOTFIX_VERSION };
-}
+SemanticVersion CurrentVersion() { return { VER_MAJOR_VERSION, VER_MINOR_VERSION, VER_HOTFIX_VERSION }; }
 
 std::optional<SemanticVersion> ParseVersionString(std::string_view version)
 {
@@ -98,7 +95,8 @@ std::optional<LatestReleaseInfo> FetchLatestRelease()
     HINTERNET connection = nullptr;
     HINTERNET request = nullptr;
 
-    auto cleanup = [&]() {
+    auto cleanup = [&]()
+    {
         if (request != nullptr)
         {
             WinHttpCloseHandle(request);
@@ -135,9 +133,8 @@ std::optional<LatestReleaseInfo> FetchLatestRelease()
         return std::nullopt;
     }
 
-    request = WinHttpOpenRequest(connection, L"GET",
-                                 L"/repos/optiscaler/optiscaler/releases/latest", nullptr, WINHTTP_NO_REFERER,
-                                 WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+    request = WinHttpOpenRequest(connection, L"GET", L"/repos/optiscaler/optiscaler/releases/latest", nullptr,
+                                 WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
     if (request == nullptr)
     {
         LOG_WARN("Version check failed to open request: {}", GetLastError());
@@ -313,27 +310,29 @@ void VersionCheck::Start()
         state.latestVersionUrl.clear();
     }
 
-    std::thread([]() {
-        try
+    std::thread(
+        []()
         {
-            RunVersionCheck();
-        }
-        catch (const std::exception& ex)
-        {
-            LOG_ERROR("Version check failed with exception: {}", ex.what());
-            auto& state = State::Instance();
-            std::scoped_lock lock(state.versionCheckMutex);
-            state.versionCheckError = "Update check failed.";
-            state.updateAvailable = false;
-        }
-        catch (...)
-        {
-            LOG_ERROR("Version check failed with unknown exception");
-            auto& state = State::Instance();
-            std::scoped_lock lock(state.versionCheckMutex);
-            state.versionCheckError = "Update check failed.";
-            state.updateAvailable = false;
-        }
-    }).detach();
+            try
+            {
+                RunVersionCheck();
+            }
+            catch (const std::exception& ex)
+            {
+                LOG_ERROR("Version check failed with exception: {}", ex.what());
+                auto& state = State::Instance();
+                std::scoped_lock lock(state.versionCheckMutex);
+                state.versionCheckError = "Update check failed.";
+                state.updateAvailable = false;
+            }
+            catch (...)
+            {
+                LOG_ERROR("Version check failed with unknown exception");
+                auto& state = State::Instance();
+                std::scoped_lock lock(state.versionCheckMutex);
+                state.versionCheckError = "Update check failed.";
+                state.updateAvailable = false;
+            }
+        })
+        .detach();
 }
-

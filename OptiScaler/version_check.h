@@ -6,5 +6,4 @@ namespace VersionCheck
 {
 const std::string& CurrentVersionString();
 void Start();
-}
-
+} // namespace VersionCheck

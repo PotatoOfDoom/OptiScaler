@@ -1560,7 +1560,9 @@ bool MenuCommon::RenderMenu()
 
                 ImGui::TextColored(toneMapColor(ImVec4(1.0f, 0.0f, 0.0f, 1.0f)), "OptiScaler Update available");
                 ImGui::Spacing();
-                ImGui::Text("Press %s for more info", Keybind::KeyNameFromVirtualKeyCode(Config::Instance()->ShortcutKey.value_or_default()).c_str());
+                ImGui::Text(
+                    "Press %s for more info",
+                    Keybind::KeyNameFromVirtualKeyCode(Config::Instance()->ShortcutKey.value_or_default()).c_str());
 
                 if (pushedFont)
                     ImGui::PopFontSize();
@@ -1950,7 +1952,7 @@ bool MenuCommon::RenderMenu()
                 {
                     ImGui::Spacing();
                     ImGui::TextColored(ImVec4(1.f, 0.8f, 0.f, 1.f), "Update available: %s (current %s)",
-                                        versionStatus.latestTag.c_str(), currentVersionText.c_str());
+                                       versionStatus.latestTag.c_str(), currentVersionText.c_str());
 
                     if (!versionStatus.latestUrl.empty())
                     {
