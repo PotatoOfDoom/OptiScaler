@@ -1925,7 +1925,8 @@ bool MenuCommon::RenderMenu()
 
         if (!_isVisible)
         {
-            ImGui::EndFrame();
+            if (frameStarted)
+                ImGui::EndFrame();
             return true;
         }
     }
